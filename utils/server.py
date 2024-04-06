@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 class Server:
     def __init__(self, ip, port: int):
-        self.lobby = Lobby([])
+        self.lobby = Lobby([], {})
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((ip, port))
@@ -25,21 +25,41 @@ class Server:
                 client.close()
 
 class ClientThread:
-    def __init__(self, s_client: socket.socket, c_address, lobby: object):
+    def __init__(self, s_client: socket.socket, c_address, lobby: dataclass):
         self.lobby = lobby
         self.s_client = s_client
         self.c_address = c_address
         self.handle_client()
 
     def handle_client(self):
+        print(f"Un client a HANDLE: {self.c_address}")
         if self.c_address in self.lobby.clients:
             print("Déja Connecté")
+        else:
+            self.lobby.clients.append(self.c_address)
+        # On va d'abord attendre un message avant de l'inscrire
+        handshake = self.recv_data()
+        if "/handshake" in handshake:
+            pass
+
+
+    def recv_data(self):
+        data = self.s_client.recv(1024).decode("utf-8")
+        if data == '':
+            return None
+        return data
+
+    def close(self):
+        self.s_client.close()
+        self.lobby.clients.delitem(self.c_address)
+
 
 @dataclass
 class Lobby:
     clients: list
+    ready: dict
 
-    def __delitem__(self, key):
+    def delitem(self, key):
         self.clients.remove(key)
 
 @dataclass
