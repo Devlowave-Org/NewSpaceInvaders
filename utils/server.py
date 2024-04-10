@@ -2,11 +2,12 @@ import socket
 from threading import Thread
 import time
 from dataclasses import dataclass
+import json
 
 
 class Server:
     def __init__(self, ip, port: int):
-        self.lobby = Lobby([], {})
+        self.lobby = Lobby([], {}, [])
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((ip, port))
@@ -21,7 +22,7 @@ class Server:
             try:
                 Thread(target=ClientThread, args=(client, client_address, self.lobby)).start()
             except OSError or IndexError as e:
-                print("Erreur lors de la réception d'un client.")
+                print("Erreur lors de la réception d'un client." + e)
                 client.close()
 
 class ClientThread:
@@ -29,6 +30,7 @@ class ClientThread:
         self.lobby = lobby
         self.s_client = s_client
         self.c_address = c_address
+        self.id = c_address[0] + "@" + str(c_address[1])
         self.handle_client()
 
     def handle_client(self):
@@ -40,6 +42,34 @@ class ClientThread:
         # On va d'abord attendre un message avant de l'inscrire
         handshake = self.recv_data()
         if "/handshake" in handshake:
+            try:
+                pseudo = handshake.split(" ")[1]
+                self.lobby.ready[self.id] = {"pseudo": pseudo, "status": "connected"}
+                self.send_data("connected to the server")
+                self.start_menu()
+            except IndexError:
+                self.close()
+        else:
+            self.close()
+
+
+    def start_menu(self):
+        """
+        L'utilisateur peut
+        -> Rejoindre une partie
+        -> Créer une partie
+        -> Lister les parties
+        :return: on retourne rien, on envoie des paquets
+        """
+        req = self.recv_data()
+        if req == "/jlist":
+            self.send_data(json.dumps(self.lobby.clients))
+
+        if req == "/create" and self.lobby.ready[self.id]["status"] != "ingame":
+            # on va créer une partie
+            pass
+
+        if "/join" in req and self.lobby.ready[self.id]["status"] != "ingame":
             pass
 
 
@@ -49,15 +79,20 @@ class ClientThread:
             return None
         return data
 
+    def send_data(self, data: str):
+        self.s_client.send(data.encode("utf-8"))
+
     def close(self):
         self.s_client.close()
-        self.lobby.clients.delitem(self.c_address)
+        self.lobby.ready.pop(self.id, None)
+        self.lobby.delitem(self.c_address)
 
 
 @dataclass
 class Lobby:
     clients: list
     ready: dict
+    party: list
 
     def delitem(self, key):
         self.clients.remove(key)
