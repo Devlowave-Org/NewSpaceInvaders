@@ -1,4 +1,5 @@
 import pyxel
+import numpy as np
 
 direction_offset = {
     0: (0, 1),  # Down
@@ -27,14 +28,17 @@ class Entity:
 
 
 class Spaceship(Entity):
+
     def __init__(self, x, y, v):
         super().__init__(x, y, v)
         self.bullets = []
+        self.background = Background(0, 0)
 
     def update(self):
         self.keyboard_input()
         self.update_velocity()
         self.update_position()
+        self.border()
         self.shoot_bullets()
         self.del_bullets()
         for bullet in self.bullets:
@@ -56,6 +60,7 @@ class Spaceship(Entity):
                 self.velocity_y += direction_offset[direction_nbr][1] * self.velocity
 
     def draw(self):
+        self.background.draw()
         self.draw_bullets()
         self.draw_spaceship()
 
@@ -65,7 +70,12 @@ class Spaceship(Entity):
         sprite_v = 82 if abs(self.velocity_x) > 0.9 or abs(self.velocity_y) > 0.9 else 189
         sprite_w = -w if self.direction == 2 or (self.direction < 2 and self.previous_direction_x == 2) else w
 
-        pyxel.blt(self.x, self.y, 0, 155, sprite_v, sprite_w, 23)
+        pyxel.blt(self.x, self.y, 0, 155, sprite_v, sprite_w, 19, 13)
+
+    def border(self):
+        if self.x > pyxel.width // 4 * 3:
+            self.x = pyxel.width // 4 * 3
+            self.background.x -= self.velocity_x
 
     def draw_bullets(self):
         for bullet in self.bullets:
@@ -73,7 +83,7 @@ class Spaceship(Entity):
 
     def shoot_bullets(self):
         if pyxel.btnp(pyxel.KEY_SPACE):
-            vx = -1 if self.direction == 2 or (self.direction < 2 and self.previous_direction_x == 2) else 1
+            vx = -3 if self.direction == 2 or (self.direction < 2 and self.previous_direction_x == 2) else 3
             self.bullets.append(Bullet(self.x + 10, self.y + 10, vx, 0, 10, 2, 1))
 
     def del_bullets(self):
@@ -97,11 +107,22 @@ class Bullet(Entity):
         pyxel.rect(self.x, self.y, self.width, self.height, self.color)
 
 
+class Background(Entity):
+    def __init__(self, x, y, ):
+        super().__init__(x, y)
+        rows = pyxel.width // 2
+        cols = pyxel.height // 2
+        arr = np.zeros((rows, cols))
+
+    def draw(self):
+        pass
+
+
 class App:
     def __init__(self):
-        pyxel.init(224, 248, "Pac-Man", 65, pyxel.KEY_ESCAPE, 10)
+        pyxel.init(544, 306, "Pac-Man", 65, pyxel.KEY_ESCAPE, 10)
         pyxel.load("theme.pyxres")
-        self.spaceship = Spaceship(50, 50, 0.2)
+        self.spaceship = Spaceship(50, 50, 0.4)
         pyxel.run(self.update, self.draw)
 
     def update(self):
@@ -113,4 +134,3 @@ class App:
 
 
 App()
-
