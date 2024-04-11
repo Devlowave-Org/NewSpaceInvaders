@@ -46,7 +46,7 @@ class ClientThread:
         handshake = self.recv_data()
         if "/handshake" in handshake:
             try:
-                self.ppseudo = handshake.split(" ")[1]
+                self.pseudo = handshake.split(" ")[1]
                 self.lobby.ready[self.id] = {"pseudo": self.pseudo, "status": "connected"}
                 self.send_data("connected to the server")
                 self.start_menu()
@@ -65,9 +65,8 @@ class ClientThread:
         :return: on retourne rien, on envoie des paquets
         """
         req = self.recv_data()
-
+        print(self.lobby.ready[self.id])
         while req:
-            req = self.recv_data()
             if req == "/jlist":
                 self.send_data(json.dumps(self.lobby.clients))
 
@@ -84,6 +83,10 @@ class ClientThread:
                     self.join_party(party)
                 except IndexError or ValueError:
                     self.close()
+            print("Aucune condition ne marche")
+            self.send_data("Rien ne va connard")
+            req = self.recv_data()
+
                 
         self.close()
     
@@ -93,6 +96,7 @@ class ClientThread:
         Il va devoir nous transmettre son objet vaisseau
         On va d'abord récupérer la partie grâce à l'ID
         """
+        print("Un jouer va créer une partie")
         self.send_data("player_object")
         p_object = self.recv_object()
         match party:
@@ -123,14 +127,16 @@ class ClientThread:
 
     def recv_data(self):
         data = self.s_client.recv(1024).decode("utf-8")
+        print(f"Réception de {data} par {self.c_address}")
         if data == '':
             return None
+        
         return data
     
     def recv_object(self):
         obj = self.s_client.recv(1024)
-        if not obj:
-            return None
+        if not obj or type(obj) == None:
+            self.close()
         obj = pickle.loads(obj)
         return obj
 
@@ -139,6 +145,7 @@ class ClientThread:
         self.s_client.send(data.encode("utf-8"))
 
     def close(self):
+        print(f"On fait quitter {self.id}")
         self.s_client.close()
         self.lobby.ready.pop(self.id, None)
         self.lobby.delitem(self.c_address)
