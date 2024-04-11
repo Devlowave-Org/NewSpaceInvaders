@@ -3,6 +3,7 @@ from threading import Thread
 import time
 from dataclasses import dataclass
 import json
+import pickle
 
 
 class Server:
@@ -31,7 +32,9 @@ class ClientThread:
         self.s_client = s_client
         self.c_address = c_address
         self.id = c_address[0] + "@" + str(c_address[1])
+        self.pseudo = None
         self.handle_client()
+
 
     def handle_client(self):
         print(f"Un client a HANDLE: {self.c_address}")
@@ -43,8 +46,8 @@ class ClientThread:
         handshake = self.recv_data()
         if "/handshake" in handshake:
             try:
-                pseudo = handshake.split(" ")[1]
-                self.lobby.ready[self.id] = {"pseudo": pseudo, "status": "connected"}
+                self.ppseudo = handshake.split(" ")[1]
+                self.lobby.ready[self.id] = {"pseudo": self.pseudo, "status": "connected"}
                 self.send_data("connected to the server")
                 self.start_menu()
             except IndexError:
@@ -62,15 +65,34 @@ class ClientThread:
         :return: on retourne rien, on envoie des paquets
         """
         req = self.recv_data()
-        if req == "/jlist":
-            self.send_data(json.dumps(self.lobby.clients))
 
-        if req == "/create" and self.lobby.ready[self.id]["status"] != "ingame":
-            # on va créer une partie
-            pass
+        while req:
+            req = self.recv_data()
+            if req == "/jlist":
+                self.send_data(json.dumps(self.lobby.clients))
 
-        if "/join" in req and self.lobby.ready[self.id]["status"] != "ingame":
-            pass
+            if req == "/create" and self.lobby.ready[self.id]["status"] != Status.ingame:
+                # on va créer une partie et le mettre dedans.
+                self.create_party()
+
+            
+            if "/join" in req and self.lobby.ready[self.id]["status"] != Status.ingame:
+                pass
+        self.close()
+    
+
+    def create_party(self):
+        # On va lui répondre en lui demandant sont objet
+        self.send_data("main_object")
+        # Le p_object contient à la fois le Joueur et le BackGround.
+        p_object = self.recv_object()
+
+        if not p_object:
+            self.close
+        
+        party = Party(player1=p_object.player, player2=None, backgound=p_object.background, level=0, status=Status.waiting)
+        self.lobby.party.append(party)
+        self.lobby.ready[self.id]["status"][""]
 
 
     def recv_data(self):
@@ -78,6 +100,14 @@ class ClientThread:
         if data == '':
             return None
         return data
+    
+    def recv_object(self):
+        obj = self.s_client.recv(1024)
+        if not obj:
+            return None
+        obj = pickle.loads(obj)
+        return obj
+
 
     def send_data(self, data: str):
         self.s_client.send(data.encode("utf-8"))
@@ -86,6 +116,7 @@ class ClientThread:
         self.s_client.close()
         self.lobby.ready.pop(self.id, None)
         self.lobby.delitem(self.c_address)
+        exit()
 
 
 @dataclass
@@ -99,12 +130,18 @@ class Lobby:
 
 @dataclass
 class Party:
-    player1: list
-    player2: list
-    pos1: list
-    pos2: list
+    player1: object
+    player2: object
+    backgound: object
     level: int
+    status: str
 
+
+class Status:
+    ingame = "ingame"
+    waiting = "waiting for a mate"
+    connected = "connected"
+    ready = "ready"
 
 if __name__ == "__main__":
     server = Server("", 3489)
