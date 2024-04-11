@@ -77,8 +77,34 @@ class ClientThread:
 
             
             if "/join" in req and self.lobby.ready[self.id]["status"] != Status.ingame:
-                pass
+                try:
+                    p_id = req.split(" ")[1]
+                    p_id = int(p_id)
+                    party = self.lobby.party[p_id]
+                    self.join_party(party)
+                except IndexError or ValueError:
+                    self.close()
+                
         self.close()
+    
+    def join_party(self, party: object):
+        """
+        Un client veut rejoindre une partie qui n'est pas pleine.
+        Il va devoir nous transmettre son objet vaisseau
+        On va d'abord récupérer la partie grâce à l'ID
+        """
+        self.send_data("player_object")
+        p_object = self.recv_object()
+        match party:
+            case party if not party.player1:
+                party.player1 = p_object
+            case party if not party.player2:
+                party.player2 = p_object
+            case _:
+                self.close()
+                
+        
+            # Alors on peut lui demander son objet
     
 
     def create_party(self):
@@ -92,7 +118,7 @@ class ClientThread:
         
         party = Party(player1=p_object.player, player2=None, backgound=p_object.background, level=0, status=Status.waiting)
         self.lobby.party.append(party)
-        self.lobby.ready[self.id]["status"][""]
+        self.lobby.ready[self.id]["status"][Status.waiting]
 
 
     def recv_data(self):
