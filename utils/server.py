@@ -122,7 +122,9 @@ class ClientThread:
         
         party = Party(player1=p_object.player, player2=None, backgound=p_object.background, level=0, status=Status.waiting)
         self.lobby.party.append(party)
-        self.lobby.ready[self.id]["status"][Status.waiting]
+        self.lobby.ready[self.id]["status"] = Status.waiting
+        game = InGame(self.s_client, self.c_address, self.lobby, party)
+        game.waiting_opponent()
 
 
     def recv_data(self):
@@ -150,6 +152,16 @@ class ClientThread:
         self.lobby.ready.pop(self.id, None)
         self.lobby.delitem(self.c_address)
         exit()
+
+
+
+class InGame(ClientThread):
+    def __init__(self, s_client: socket.socket, c_address, lobby: dataclass, party: dataclass):
+        super().__init__(s_client=s_client, c_address=c_address, lobby=lobby)
+        self.party = party
+
+    def waiting_opponent(self):
+        pass
 
 
 @dataclass
