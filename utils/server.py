@@ -98,17 +98,15 @@ class ClientThread:
         """
         print("Un jouer va créer une partie")
         self.send_data("player_object")
-        p_object = self.recv_object()
-        match party:
-            case party if not party.player1:
-                party.player1 = p_object
-            case party if not party.player2:
-                party.player2 = p_object
-            case _:
-                self.close()
+        player_object = self.recv_object()
+        if len(party.players) < 2:
+            party.players.append(player_object)
+            self.lobby.ready[self.id]["status"] = Status.waiting
+
+        self.close()
                 
-        
-            # Alors on peut lui demander son objet
+        # Alors on peut lui demander son objet
+
     
 
     def create_party(self):
@@ -175,8 +173,7 @@ class Lobby:
 
 @dataclass
 class Party:
-    player1: object
-    player2: object
+    players: list
     backgound: object
     level: int
     status: str
